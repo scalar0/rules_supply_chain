@@ -1,0 +1,32 @@
+load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
+load("@rules_license//rules:license.bzl", "license")
+load("@rules_supply_chain//:defs.bzl", "report")
+
+package(default_package_metadata = [
+    ":identity",
+    ":license",
+])
+
+package_metadata(
+    name = "identity",
+    purl = "pkg:generic/example@1.0.0",
+)
+
+license(
+    name = "license",
+    license_kinds = ["@rules_license//licenses/spdx:MIT"],
+    license_text = "LICENSE",
+)
+
+filegroup(
+    name = "inputs",
+    srcs = ["input.txt"],
+)
+
+report(
+    name = "audit",
+    expected_packages = ["pkg:generic/example@1.0.0"],
+    overlay_evidence = {"pkg:generic/example@1.0.0": ["origin.txt"]},
+    required_overlay_packages = ["pkg:generic/example@1.0.0"],
+    roots = [":inputs"],
+)

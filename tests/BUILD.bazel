@@ -1,0 +1,42 @@
+load("//:defs.bzl", "report")
+load(":support.bzl", "report_test")
+
+filegroup(
+    name = "defaults",
+    srcs = ["NOTICE"],
+)
+
+report(
+    name = "fixture_report",
+    evidence = ["NOTICE"],
+    expected_packages = [
+        "pkg:generic/fixture-override",
+        "pkg:generic/legacy@1.2.3",
+    ],
+    overlay_evidence = {"pkg:generic/fixture-override": ["origin.txt"]},
+    required_overlay_packages = ["pkg:generic/fixture-override"],
+    roots = [
+        ":defaults",
+        "//tests/fixtures:corpus",
+    ],
+)
+
+report(
+    name = "empty_report",
+    roots = [],
+)
+
+report_test(
+    name = "report_test",
+    size = "small",
+    data = [
+        ":empty_report",
+        ":fixture_report",
+        "//private:check.jq",
+        "//private:coverage.jq",
+        "//private:digest.sh",
+        "//private:metadata.jq",
+        "//private:notices.jq",
+    ],
+    script = "report_test.sh",
+)

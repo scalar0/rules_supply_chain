@@ -1,0 +1,13 @@
+module(
+    name = "rules_supply_chain",
+    version = "0.1.0",
+)
+
+bazel_dep(name = "jq.bzl", version = "0.6.1")
+bazel_dep(name = "package_metadata", version = "0.0.13")
+bazel_dep(name = "rules_license", version = "1.0.0")
+
+jq_toolchains = use_extension("@jq.bzl//jq:extensions.bzl", "toolchains")
+use_repo(jq_toolchains, "jq_toolchains")
+
+register_toolchains("@jq_toolchains//:all")

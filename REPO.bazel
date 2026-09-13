@@ -1,0 +1,6 @@
+"""Declare the module identity and MIT license defaults."""
+
+repo(
+    default_package_metadata = ["//:package_metadata", "//:license"],
+    default_visibility = ["//visibility:private"],
+)

@@ -1,0 +1,64 @@
+load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
+load("@rules_license//rules:package_info.bzl", "package_info")
+load(":sources.bzl", "corpus")
+
+package(
+    default_package_metadata = [":identity"],
+    default_visibility = ["//tests:__pkg__"],
+)
+
+package_metadata(
+    name = "identity",
+    purl = "pkg:generic/fixture-override",
+)
+
+alias(
+    name = "alias",
+    actual = ":raw",
+)
+
+filegroup(
+    name = "raw",
+    srcs = ["input.ebnf"],
+)
+
+filegroup(
+    name = "legacy",
+    srcs = [":generated.ebnf"],
+    package_metadata = [":legacy_identity"],
+)
+
+filegroup(
+    name = "missing",
+    srcs = ["input.ebnf"],
+    package_metadata = [],
+)
+
+filegroup(
+    name = "license_only",
+    srcs = ["input.ebnf"],
+    package_metadata = ["//:license"],
+)
+
+package_info(
+    name = "legacy_identity",
+    package_name = "legacy",
+    package_version = "1.2.3",
+    purl = "pkg:generic/legacy@1.2.3",
+)
+
+genrule(
+    name = "generated",
+    srcs = [":alias"],
+    outs = ["generated.ebnf"],
+    cmd = "cat $(SRCS) > $@",
+)
+
+corpus(
+    name = "corpus",
+    sources = {
+        ":legacy": "legacy",
+        ":license_only": "license_only",
+        ":missing": "missing",
+    },
+)

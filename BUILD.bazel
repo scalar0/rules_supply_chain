@@ -1,0 +1,24 @@
+load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
+load("@rules_license//rules:license.bzl", "license")
+
+package_metadata(
+    name = "package_metadata",
+    purl = "pkg:github/scalar0/rules_supply_chain@0.1.0",
+    visibility = ["//visibility:public"],
+)
+
+license(
+    name = "license",
+    package_name = "rules_supply_chain",
+    license_kinds = ["@rules_license//licenses/spdx:MIT"],
+    license_text = "LICENSE",
+    package_url = "https://github.com/scalar0/rules_supply_chain",
+)
+
+filegroup(
+    name = "supply_chain_module",
+    srcs = ["MODULE.bazel"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(["defs.bzl"])
