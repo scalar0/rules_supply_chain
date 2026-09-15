@@ -1,7 +1,20 @@
+exports_files(
+    [
+        "collect.bzl",
+        "legal_scope.bzl",
+    ],
+    visibility = [
+        "//:__pkg__",
+        "//docs:__pkg__",
+    ],
+)
+
 exports_files([
     "check.jq",
+    "contents.jq",
     "coverage.jq",
     "digest.sh",
     "metadata.jq",
     "notices.jq",
+    "schema.jq",
 ])

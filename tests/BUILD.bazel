@@ -33,10 +33,25 @@ report_test(
         ":empty_report",
         ":fixture_report",
         "//private:check.jq",
+        "//private:contents.jq",
         "//private:coverage.jq",
         "//private:digest.sh",
         "//private:metadata.jq",
         "//private:notices.jq",
+        "//private:schema.jq",
     ],
     script = "report_test.sh",
+)
+
+report_test(
+    name = "adapter_test",
+    size = "small",
+    data = [
+        ":fixture_report_inventory",
+        "//:schema",
+        "//private:check.jq",
+        "//private:coverage.jq",
+        "//private:metadata.jq",
+    ],
+    script = "adapter_test.sh",
 )

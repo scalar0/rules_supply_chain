@@ -21,4 +21,32 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-exports_files(["defs.bzl"])
+filegroup(
+    name = "schema",
+    srcs = ["schema.json"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "report_sources",
+    srcs = [
+        "defs.bzl",
+        "graph.bzl",
+        "providers.bzl",
+        "source_metadata.bzl",
+        "//private:collect.bzl",
+        "//private:legal_scope.bzl",
+        "@package_metadata//providers:srcs",
+        "@rules_license//rules:standard_package",
+        "@rules_license//rules_gathering:standard_package",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "defs.bzl",
+    "graph.bzl",
+    "providers.bzl",
+    "repositories.bzl",
+    "source_metadata.bzl",
+])

@@ -1,1 +1,6 @@
 bazel-*
+.gitcommit
+# Generated Stardoc files.
+/docs/generated/
+/docs/providers.md
+/docs/report.md

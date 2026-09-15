@@ -38,38 +38,15 @@ The [consumer example](examples/basic/README.md) is an independent Bazel module.
 
 ## Interface
 
-| Argument | Value | Purpose |
-| --- | --- | --- |
-| `name` | Target name | Set the report scope and output directory |
-| `roots` | Label list | Select the dependency graph roots |
-| `expected_packages` | PURL list | Require these package identities |
-| `evidence` | Label list | Include additional source and legal evidence |
-| `overlay_evidence` | PURL to label-list map | Associate files with exact package identities |
-| `required_overlay_packages` | PURL list | Require a nonempty overlay association for each identity |
+The [adapter contract](EVIDENCE.md) describes optional package evidence inputs and schema-version-1 additions.
 
-Only `name` and `roots` are required.
-The other arguments default to empty collections.
-Evidence labels can identify files or filegroups.
-Different packages can share evidence files.
-Overlay associations do not depend on repository names, filenames, or report scope names.
-The check fails if a required overlay package is absent or has no associated files.
-
-Each report produces schema-version-1 outputs under `<name>/`:
-
-| Output | Contents |
-| --- | --- |
-| `metadata.json` | Packages, graph relationships, source digests, and exact evidence text |
-| `coverage.json` | Missing identities, missing license text, unresolved terms, and conflicts |
-| `notices.txt` | Package index and exact license and notice text |
-| `check.json` | The structural check result |
-
-The macro also creates `<name>_inventory`, `<name>_metadata`, `<name>_coverage`, `<name>_notices`, and `<name>_check` targets.
-A failed structural check fails the combined report target.
-Identical inputs produce identical output bytes.
+The [API docstrings](defs.bzl) describe all arguments, defaults, outputs, and structural requirements.
+Stardoc generates Markdown from these docstrings under bazel-bin/docs/generated.
+The [consumer example](examples/basic/BUILD.bazel) supplies package metadata and explicit overlay evidence.
 
 ## Collection limits
 
-The collector reads `PackageMetadataInfo`, `LicenseInfo`, and legacy `PackageInfo` providers.
+The collector reads `PackageMetadataInfo`, `LicenseInfo`, `LegalScopeInfo`, and legacy `PackageInfo` providers.
 It preserves repository defaults and package overrides.
 Missing legal evidence remains a coverage gap.
 The module does not assign its own MIT license to consumer inputs.
@@ -92,18 +69,18 @@ Cargo scanning, release policy, SBOM export, signing, and complete compiler tool
 
 ## Development
 
-| Command | Purpose |
-| --- | --- |
-| `just lint` | Check Starlark formatting and shell syntax |
-| `just test` | Run standalone module tests |
-| `just example` | Build the independent consumer report |
-| `just check` | Check the module, example, and both lockfiles |
+See the [Justfile](Justfile) for development commands.
 
-## License and origin
+### API documentation
 
-The module code and documentation use the [MIT license](LICENSE).
-Collected artifacts and dependency licenses retain their original terms.
+Use the [Stardoc docstring format](https://github.com/bazelbuild/stardoc/blob/master/docs/writing_stardoc.md) for the public API.
+Keep parameter descriptions in the `Args:` section of [defs.bzl](defs.bzl).
+Keep setup and collection limits in this README.
+The [documentation targets](docs/BUILD.bazel) select the public rules, macro, and providers.
+Documentation tools are development dependencies.
+The module registers a pinned LLVM development toolchain to build Stardoc dependencies.
+Consumer modules do not need these tools.
 
-The initial source came from `tools/supply_chain` in `scalar0/kertc`.
-The source commit was `cbd9ba4779fff672238aee00093082e80421857e`.
-The extraction separates repository configuration from the reporting engine.
+Update the public docstring when you change an argument, output, or structural requirement.
+Generated references do not belong in source control.
+The module test command also builds the documentation targets.

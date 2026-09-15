@@ -1,9 +1,13 @@
 load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
 load("@rules_license//rules:package_info.bzl", "package_info")
+load("//:defs.bzl", "legal_scope")
 load(":sources.bzl", "corpus")
 
 package(
-    default_package_metadata = [":identity"],
+    default_package_metadata = [
+        ":identity",
+        ":evidence",
+    ],
     default_visibility = ["//tests:__pkg__"],
 )
 
@@ -61,4 +65,12 @@ corpus(
         ":license_only": "license_only",
         ":missing": "missing",
     },
+)
+
+legal_scope(
+    name = "evidence",
+    artifacts = ["input.ebnf"],
+    gaps = ["unresolved_applicability"],
+    package = ":identity",
+    texts = ["input.ebnf"],
 )

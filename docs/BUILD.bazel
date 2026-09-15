@@ -1,0 +1,58 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+filegroup(
+    name = "reference",
+    srcs = [
+        ":providers_reference",
+        ":report_reference",
+        ":sources_reference",
+    ],
+)
+
+bzl_library(
+    name = "report_bzl",
+    # Provider modules export source filegroups instead of bzl_library targets.
+    srcs = ["//:report_sources"],
+    deps = ["@jq.bzl//jq"],
+)
+
+stardoc(
+    name = "report_reference",
+    out = "generated/report.md",
+    input = "//:defs.bzl",
+    render_main_repo_name = True,
+    stamp = 0,
+    symbol_names = [
+        "legal_scope",
+        "report",
+    ],
+    table_of_contents_template = "@stardoc//stardoc:templates/markdown_tables/table_of_contents.vm",
+    deps = [":report_bzl"],
+)
+
+stardoc(
+    name = "providers_reference",
+    out = "generated/providers.md",
+    input = "//:providers.bzl",
+    render_main_repo_name = True,
+    stamp = 0,
+    symbol_names = [
+        "LegalScopeInfo",
+        "PackageEvidenceInfo",
+    ],
+    deps = [":report_bzl"],
+)
+
+stardoc(
+    name = "sources_reference",
+    out = "generated/sources.md",
+    input = "//:source_metadata.bzl",
+    render_main_repo_name = True,
+    stamp = 0,
+    symbol_names = [
+        "source_repository",
+        "SourceRepositoryInfo",
+    ],
+    deps = [":report_bzl"],
+)

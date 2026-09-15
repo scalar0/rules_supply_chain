@@ -2,7 +2,22 @@
 
 load("@jq.bzl//jq/toolchain:toolchain.bzl", "TOOLCHAIN_TYPE")
 load("@package_metadata//providers:package_metadata_info.bzl", "PackageMetadataInfo")
-load("@rules_license//rules:providers.bzl", "LicenseInfo", "PackageInfo")
+load(
+    "@rules_license//rules:providers.bzl",
+    "LicenseInfo",
+    "PackageInfo",
+)
+load(
+    "//:graph.bzl",
+    _EDGES = "DEPENDENCY_ATTRIBUTES",
+    _targets = "targets",
+)
+load(
+    "//:providers.bzl",
+    "LegalScopeInfo",
+    "PackageEvidenceInfo",
+)
+load("//:source_metadata.bzl", "SourceRepositoryInfo")
 
 CollectionInfo = provider(
     doc = "Transitive source and package evidence collected from a Bazel target graph.",
@@ -15,18 +30,7 @@ CollectionInfo = provider(
     },
 )
 
-# These attributes carry product inputs or grammar conversion inputs.
-_EDGES = ["srcs", "deps", "data", "sources", "actual", "compile_data", "grammars", "ir", "_emit", "_importer", "_importer_source", "_lock", "_tool"]
 _METADATA = ["package_metadata"]
-
-def _targets(value):
-    if type(value) == "Target":
-        return [value]
-    if type(value) == "list":
-        return [v for v in value if type(v) == "Target"]
-    if type(value) == "dict":
-        return [v for v in value.keys() if type(v) == "Target"]
-    return []
 
 def _collect_impl(target, ctx):
     files = []
@@ -37,6 +41,8 @@ def _collect_impl(target, ctx):
     children = []
     edges = []
     helpers = []
+    scopes = []
+    sources = []
     if ctx.rule:
         for attribute in _METADATA:
             helpers.extend(_targets(getattr(ctx.rule.attr, attribute, [])))
@@ -44,6 +50,22 @@ def _collect_impl(target, ctx):
     # Explicit metadata roots must also appear in the module inventory.
     candidates = helpers + [target]
     for helper in candidates:
+        if LegalScopeInfo in helper:
+            info = helper[LegalScopeInfo]
+            metadata.extend(info.package.files.to_list())
+            packages.append({"file": info.package.metadata.short_path, "provider": "PackageMetadataInfo"})
+            files.extend(info.artifacts)
+            texts.extend(info.texts)
+            scopes.append({
+                "artifacts": [f.short_path for f in info.artifacts],
+                "gaps": info.gaps,
+                "package": info.package.metadata.short_path,
+                "texts": [f.short_path for f in info.texts],
+            })
+        if SourceRepositoryInfo in helper:
+            info = helper[SourceRepositoryInfo]
+            metadata.append(info.metadata)
+            sources.append(info.metadata.short_path)
         if PackageMetadataInfo in helper:
             info = helper[PackageMetadataInfo]
             metadata.extend(info.files.to_list())
@@ -69,7 +91,7 @@ def _collect_impl(target, ctx):
             })
             if info.license_text:
                 texts.append(info.license_text)
-    is_helper = PackageMetadataInfo in target or PackageInfo in target or LicenseInfo in target
+    is_helper = PackageMetadataInfo in target or PackageInfo in target or LicenseInfo in target or LegalScopeInfo in target or SourceRepositoryInfo in target
     if ctx.rule and not is_helper:
         for attribute in _EDGES:
             for dep in _targets(getattr(ctx.rule.attr, attribute, [])):
@@ -81,7 +103,7 @@ def _collect_impl(target, ctx):
         files.extend([f for f in target[DefaultInfo].files.to_list() if f.is_source or f.extension in ["ebnf", "xtext", "ungram"]])
 
     # buildifier: disable=attr-licenses
-    node = json.encode({
+    node_data = {
         "dependencies": edges,
         "files": [f.short_path for f in files],
         "helper": is_helper,
@@ -90,7 +112,12 @@ def _collect_impl(target, ctx):
         # buildifier: disable=attr-licenses
         "licenses": licenses,
         "packages": packages,
-    })
+    }
+    if scopes:
+        node_data["legal_scopes"] = scopes
+    if sources:
+        node_data["source_records"] = sources
+    node = json.encode(node_data)
     return [CollectionInfo(
         root = str(target.label),
         nodes = depset([node], transitive = [c.nodes for c in children]),
@@ -113,6 +140,7 @@ It includes source files and generated grammar inputs, and omits executable outp
 
 def _inventory_impl(ctx):
     collections = [target[CollectionInfo] for target in ctx.attr.roots]
+    adapters = [target[PackageEvidenceInfo] for target in ctx.attr.package_evidence]
     overlays = {}
     overlay_files = []
     for target, encoded_purls in ctx.attr.overlay_bindings.items():
@@ -120,27 +148,31 @@ def _inventory_impl(ctx):
         overlay_files.extend(inputs)
         for purl in json.decode(encoded_purls):
             overlays.setdefault(purl, []).extend([f.short_path for f in inputs])
-    files = depset(ctx.files.evidence + overlay_files, transitive = [c.files for c in collections]).to_list()
+    files = depset(ctx.files.evidence + overlay_files, transitive = [c.files for c in collections] + [a.files for a in adapters]).to_list()
     texts = depset(transitive = [c.texts for c in collections]).to_list()
     texts.extend([f for f in ctx.files.evidence if f.basename in ["Cargo.toml", "MODULE.bazel"] or f.basename.startswith("NOTICE") or "/LICENSES/" in f.short_path])
     text_paths = {f.path: True for f in texts}
     files = [f for f in files if f.path not in text_paths]
     metadata = depset(transitive = [c.metadata for c in collections]).to_list()
+    metadata.extend([a.records for a in adapters])
+    metadata_paths = {f.path: True for f in metadata}
+    files = [f for f in files if f.path not in metadata_paths]
     nodes = depset(transitive = [c.nodes for c in collections]).to_list()
     manifest = ctx.actions.declare_file(ctx.label.name + ".manifest.json")
     ctx.actions.write(manifest, json.encode({
+        "$schema": "urn:rules-supply-chain:schema:2#manifest",
         "expected_packages": ctx.attr.expected_packages,
         "files": [{"kind": kind, "logical": f.short_path, "path": f.path} for kind, inputs in [("source", files), ("text", texts), ("metadata", metadata)] for f in inputs],
         "nodes": [json.decode(n) for n in nodes],
         "overlay_evidence": overlays,
+        "package_evidence": [a.records.short_path for a in adapters],
         "roots": [str(t.label) for t in ctx.attr.roots],
-        "schema_version": 1,
         "scope": ctx.attr.scope,
     }))
     output = ctx.actions.declare_file(ctx.label.name + ".json")
     jq = ctx.toolchains[TOOLCHAIN_TYPE].jqinfo.bin
     ctx.actions.run_shell(
-        inputs = depset([manifest, ctx.file._digest] + files + texts + metadata),
+        inputs = depset([manifest, ctx.file._digest, ctx.file._contents] + files + texts + metadata),
         tools = [jq],
         outputs = [output],
         arguments = [ctx.file._digest.path, jq.path, manifest.path, output.path],
@@ -155,14 +187,16 @@ inventory = rule(
 
 The collect aspect supplies target relationships and package metadata from each root.
 The action combines this data with explicit evidence and file digests.
-`DefaultInfo` exposes `<name>.json`, a version 1 evidence inventory.
+`DefaultInfo` exposes `<name>.json`, an evidence inventory with a schema reference.
 """,
     attrs = {
         "evidence": attr.label_list(allow_files = True, doc = "Additional source, manifest, license, or notice files to digest and retain as evidence."),
         "expected_packages": attr.string_list(doc = "Required package identities to record for later report checks."),
         "overlay_bindings": attr.label_keyed_string_dict(allow_files = True, doc = "Evidence labels mapped to JSON lists of package identities."),
+        "package_evidence": attr.label_list(providers = [PackageEvidenceInfo], doc = "Package evidence adapter targets."),
         "roots": attr.label_list(aspects = [collect], doc = "Targets whose source dependencies and package providers define the inventory."),
         "scope": attr.string(mandatory = True, doc = "The report scope identifier stored in the inventory."),
+        "_contents": attr.label(default = Label("//private:contents.jq"), allow_single_file = True),
         "_digest": attr.label(default = Label("//private:digest.sh"), allow_single_file = True),
     },
     toolchains = [TOOLCHAIN_TYPE],

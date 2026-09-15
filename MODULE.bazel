@@ -7,6 +7,17 @@ bazel_dep(name = "jq.bzl", version = "0.6.1")
 bazel_dep(name = "package_metadata", version = "0.0.13")
 bazel_dep(name = "rules_license", version = "1.0.0")
 
+bazel_dep(name = "bazel_lib", version = "3.7.2", dev_dependency = True)
+bazel_dep(name = "bazel_skylib", version = "1.9.2", dev_dependency = True)
+bazel_dep(name = "llvm", version = "0.8.19", dev_dependency = True)
+bazel_dep(name = "stardoc", version = "0.8.1", dev_dependency = True)
+
+# Documentation tools use a pinned compiler and linker.
+register_toolchains(
+    "@llvm//toolchain:all",
+    dev_dependency = True,
+)
+
 jq_toolchains = use_extension("@jq.bzl//jq:extensions.bzl", "toolchains")
 use_repo(jq_toolchains, "jq_toolchains")
 
